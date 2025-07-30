@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "render-build": "echo \"Build complete\""
+    "render-build": "npm install"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -17,8 +17,8 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "dotenv": "^17.2.1",
     "@google/genai": "^1.11.0",
-    "discord.js": "^14.21.0",
-    "dotenv": "^17.2.1"
+    "discord.js": "^14.21.0"
   }
 }
