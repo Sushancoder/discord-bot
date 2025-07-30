@@ -1,56 +1,79 @@
 // Loading environment variables
-import dotenv from "dotenv"
-dotenv.config()
-
-// // JSDOM:
-// import { JSDOM } from "jsdom"
-// const dom = new JSDOM()
-
+import dotenv from "dotenv";
+dotenv.config();
 
 // Configuring Gemini
 import { GoogleGenAI } from "@google/genai";
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-// const model = "gemini-2.0-flash"
-const model = "gemma-3-27b-it"
 
 // Configuring Discord
-import {
-    Client,
-    GatewayIntentBits,
-} from 'discord.js';
+import { Client, GatewayIntentBits } from 'discord.js';
 
+// Environment variable validation
+const requiredEnvVars = ['DISCORD_TOKEN', 'GEMINI_API_KEY'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+    console.error('Missing required environment variables:', missingEnvVars.join(', '));
+    process.exit(1);
+}
+
+// Initialize Google GenAI
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const model = "gemma-3-27b-it";
+
+// Initialize Discord client
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
     ],
-})
+});
 
-// Logging in to the app
-client.login(process.env.DISCORD_TOKEN)
+// Handle client errors
+client.on('error', (error) => {
+    console.error('Discord client error:', error);});
 
-// Checking messages
+// Handle process events
+process.on('unhandledRejection', (error) => {
+    console.error('Unhandled promise rejection:', error);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception:', error);
+    process.exit(1);
+});
+
+// Log when the bot is ready
+client.once('ready', () => {
+    console.log(`Logged in as ${client.user.tag}!`);
+});
+
+// Message handling
 client.on('messageCreate', async (message) => {
-    // console.log(message.content)
-
     if (!message?.author.bot && message.content) {
-        // if (!message?.author.bot && message.author.id !== client.user.id) {
         try {
-
             const response = await ai.models.generateContent({
                 model: model,
-                contents: `Keep the response for this message less than 2000 
-        characters: ${message.content}`,
+                contents: `Keep the response for this message less than 2000 characters: ${message.content}`,
             });
 
-            // let amsg = "This is a message."
-            message.channel.send(response.text);
-
-            console.log(response.text)
+            await message.channel.send(response.text);
+            console.log('Response sent successfully');
         } catch (error) {
-            console.error("Error generating response from Gemini AI:", error);
-            message.channel.send("Sorry, I couldn't process that right now.");
+            console.error('Error generating response from Gemini AI:', error);
+            try {
+                await message.channel.send('Sorry, I encountered an error while processing your request.');
+            } catch (sendError) {
+                console.error('Failed to send error message:', sendError);
+            }
         }
     }
-})
+});
+
+// Log in to Discord
+client.login(process.env.DISCORD_TOKEN)
+    .catch(error => {
+        console.error('Failed to log in to Discord:', error);
+        process.exit(1);
+    });
